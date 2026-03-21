@@ -47,7 +47,7 @@ filing_dates = [f[1] for f in filings]  # f[1] is the date string
 selected_date = st.sidebar.selectbox("Select Filing Period", filing_dates)
 
 # Tabs for different views
-tab1, tab2, tab3 = st.tabs(["Top Holdings", "Quarterly Changes", "Sector Analysis"])
+tab1, tab2 = st.tabs(["Top Holdings", "Quarterly Changes"])
 
 with tab1:
     st.subheader(f"Top 10 Holdings - {fund_name}")
@@ -56,7 +56,8 @@ with tab1:
     if holdings:
         df = pd.DataFrame(holdings)
         df['value'] = df['value'].apply(lambda x: f"${x:,}")
-        st.dataframe(df, use_container_width=True)
+        df.index = range(1, len(df) + 1)
+        st.dataframe(df, width='stretch')
         
         # Chart: Top holdings by value
         holdings_chart = pd.DataFrame(holdings)
@@ -67,12 +68,12 @@ with tab1:
             title=f"Top 10 Holdings - {selected_date}",
             labels={'company_name': 'Company', 'value': 'Value ($1000s)'}
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key="top_holdings_chart")
     else:
         st.info(f"No holdings data available for {selected_date}")
 
 with tab2:
-    st.subheader("What's Changing? (Quarter-over-Quarter)")
+    st.subheader(f"Quarter-over-Quarter Change - {fund_name}")
     qoq = get_qoq_changes(fund_name)
     
     if 'message' in qoq:
@@ -84,7 +85,8 @@ with tab2:
             st.write("**New Positions**")
             if qoq.get('NEW'):
                 new_df = pd.DataFrame(qoq['NEW'])
-                st.dataframe(new_df, use_container_width=True)
+                new_df.index = range(1, len(new_df) + 1)
+                st.dataframe(new_df, width='stretch')
             else:
                 st.write("No new positions")
         
@@ -92,10 +94,7 @@ with tab2:
             st.write("**Increased Positions**")
             if qoq.get('INCREASED'):
                 inc_df = pd.DataFrame(qoq['INCREASED'])
-                st.dataframe(inc_df, use_container_width=True)
+                inc_df.index = range(1, len(inc_df) + 1)
+                st.dataframe(inc_df, width='stretch')
             else:
                 st.write("No increased positions")
-
-with tab3:
-    st.subheader("Sector Breakdown")
-    st.info("Sector analysis coming soon")

@@ -27,13 +27,24 @@ def load_13f_data():
     print(f"Found {len(info_df)} filings")
     print(f"Found {len(holdings_df)} holdings")
     
+    # Normalize dates in both dataframes (handle mixed format)
+    info_df['CONFORMED_DATE'] = pd.to_datetime(info_df['CONFORMED_DATE'], format='mixed').dt.strftime('%Y-%m-%d')
+    holdings_df['CONFORMED_DATE'] = pd.to_datetime(holdings_df['CONFORMED_DATE'], format='mixed').dt.strftime('%Y-%m-%d')
+    
     # Process each filing
     for idx, row in info_df.iterrows():
         cik = str(int(row['CIK'])).zfill(10)
         manager_name = row['COMPANY_NAME']
         sec_file_number = row['SEC_FILE_NUMBER']
+        conformed_date = row['CONFORMED_DATE']
         
-        print(f"\nProcessing: {manager_name}")
+        # Extract unique accession number from SEC_FILING_URL
+        filing_url = str(row['SEC_FILING_URL'])
+        # URL format: https://www.sec.gov/Archives/edgar/data/CIK/XXXXXXXXXX/accession-number.txt
+        # Extract accession number from URL
+        accession_number = filing_url.split('/')[-1].replace('.txt', '')
+        
+        print(f"\nProcessing: {manager_name} - {conformed_date} (Accession: {accession_number})")
         
         # Create or get manager
         manager = session.query(Manager).filter_by(cik=cik).first()
@@ -43,27 +54,28 @@ def load_13f_data():
             session.commit()
             print(f"  ✓ Created manager: {manager_name}")
         
-        # Check if filing already exists
-        filing = session.query(Filing).filter_by(accession_number=sec_file_number).first()
+        # Check if filing already exists (using actual accession number)
+        filing = session.query(Filing).filter_by(accession_number=accession_number).first()
         if filing:
-            print(f"  ℹ Filing {sec_file_number} already exists, skipping")
+            print(f"  ℹ Filing {accession_number} already exists, skipping")
             continue
         
         # Create filing record
         filing = Filing(
             manager_cik=cik,
-            accession_number=sec_file_number,
+            accession_number=accession_number,
             filing_date=pd.to_datetime(row['FILED_DATE']).date() if pd.notna(row['FILED_DATE']) else None,
             period_of_report=pd.to_datetime(row['CONFORMED_DATE']).date() if pd.notna(row['CONFORMED_DATE']) else None,
             total_value=int(row['TOTAL_VALUE']) if pd.notna(row['TOTAL_VALUE']) else 0
         )
         session.add(filing)
         session.commit()
-        print(f"  ✓ Created filing: {sec_file_number}")
+        print(f"  ✓ Created filing: {accession_number}")
         
-        # Add holdings for this filing
+        # Add holdings for this filing - match by SEC_FILE_NUMBER and CONFORMED_DATE
         filing_holdings = holdings_df[
-            holdings_df['SEC_FILE_NUMBER'] == sec_file_number
+            (holdings_df['SEC_FILE_NUMBER'] == sec_file_number) &
+            (holdings_df['CONFORMED_DATE'] == conformed_date)
         ]
         
         count = 0
