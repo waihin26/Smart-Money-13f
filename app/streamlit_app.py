@@ -52,14 +52,20 @@ with tab_home:
                 
                 with col_value:
                     st.markdown("**Portfolio Value**")
-                    # portfolio_value is in thousands, so divide by 1,000,000 to get billions
-                    value_in_billions = manager_data['portfolio_value'] / 1_000_000
+                    value_in_billions = manager_data['portfolio_value'] / 1_000_000_000
                     st.markdown(f"## ${value_in_billions:.2f}B")
                 
                 with col_holdings:
                     st.markdown(f"**Top 10 Holdings** ({manager_data['num_stocks']} positions)")
-                    holdings_list = " • ".join([h['company_name'] for h in manager_data['top_holdings']])
-                    st.caption(holdings_list)
+                    
+                    # Display holdings in rows of 5 tickers
+                    holdings_data = manager_data['top_holdings']
+                    for row_idx in range(0, len(holdings_data), 5):
+                        row_holdings = holdings_data[row_idx:row_idx+5]
+                        ticker_row = " • ".join([h.get('ticker', h['company_name'][:4].upper()) for h in row_holdings])
+                        st.caption(ticker_row)
+
+
                 
                 st.divider()
     else:
