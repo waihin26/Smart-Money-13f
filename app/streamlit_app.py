@@ -52,8 +52,8 @@ with tab_home:
                 
                 with col_value:
                     st.markdown("**Portfolio Value**")
-                    # portfolio_value is in millions, so divide by 1000 to get billions
-                    value_in_billions = manager_data['portfolio_value'] / 1000
+                    # portfolio_value is in thousands, so divide by 1,000,000 to get billions
+                    value_in_billions = manager_data['portfolio_value'] / 1_000_000
                     st.markdown(f"## ${value_in_billions:.2f}B")
                 
                 with col_holdings:
