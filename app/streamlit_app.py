@@ -53,8 +53,8 @@ with tab_home:
                 with col_value:
                     st.markdown("**Portfolio Value**")
                     # portfolio_value is in thousands, so divide by 1,000,000 to get billions
-                    value_str = f"${manager_data['portfolio_value'] / 1_000_000:.2f}B"
-                    st.metric("", value_str)
+                    value_in_billions = manager_data['portfolio_value'] / 1_000_000
+                    st.markdown(f"## ${value_in_billions:.2f}B")
                 
                 with col_holdings:
                     st.markdown(f"**Top 10 Holdings** ({manager_data['num_stocks']} positions)")
