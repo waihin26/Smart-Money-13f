@@ -12,7 +12,7 @@ import pandas as pd
 from datetime import datetime
 import plotly.express as px
 from src.analytics.portfolio_analytics import (
-    get_managers, get_filings_for_manager, get_top_holdings, get_qoq_changes, get_buy_history, get_sell_history, get_quarterly_changes_formatted
+    get_managers, get_filings_for_manager, get_top_holdings, get_qoq_changes, get_buy_history, get_sell_history, get_quarterly_changes_formatted, get_all_managers_with_holdings
 )
 
 st.set_page_config(page_title="Smart Money 13F Tracker", layout="wide")
@@ -23,9 +23,6 @@ Track what institutional fund managers are buying.
 Analyze quarterly 13F-HR SEC filings from top asset managers.
 """)
 
-# Sidebar for fund selection
-st.sidebar.header("Filter Options")
-
 # Get managers from database
 managers = get_managers()
 
@@ -33,31 +30,68 @@ if not managers:
     st.error("No managers found in database. Please run: python scripts/load_13f_to_db.py")
     st.stop()
 
-fund_name = st.sidebar.selectbox("Select Fund Manager", managers)
+# Main tabs
+tab_home, tab1, tab2, tab3, tab4 = st.tabs(["Home", "Top Holdings", "Quarterly Changes", "Buys", "Sells"])
 
-# Get available filings for this manager
-filings = get_filings_for_manager(fund_name)
+# ===== HOME TAB =====
+with tab_home:
+    st.subheader("Smart Money Funds Overview")
+    
+    # Get all managers' data
+    all_managers_data = get_all_managers_with_holdings()
+    
+    if all_managers_data:
+        # Display funds in horizontal cards
+        for manager_data in all_managers_data:
+            with st.container():
+                # Create columns for layout
+                col_name, col_value, col_holdings = st.columns([1.5, 1, 2.5])
+                
+                with col_name:
+                    st.markdown(f"### {manager_data['name']}")
+                
+                with col_value:
+                    st.markdown("**Portfolio Value**")
+                    if manager_data['portfolio_value'] >= 1000000:
+                        value_str = f"${manager_data['portfolio_value'] / 1000000:.1f}B"
+                    else:
+                        value_str = f"${manager_data['portfolio_value'] / 1000:.1f}M"
+                    st.metric("", value_str)
+                
+                with col_holdings:
+                    st.markdown(f"**Top 10 Holdings** ({manager_data['num_stocks']} positions)")
+                    holdings_list = " • ".join([h['company_name'] for h in manager_data['top_holdings']])
+                    st.caption(holdings_list)
+                
+                st.divider()
+    else:
+        st.info("No fund data available")
+
+# Sidebar for fund selection for detail tabs
+st.sidebar.header("Fund Details")
+selected_fund = st.sidebar.selectbox("Select Fund Manager", managers, key="fund_selector")
+
+# Get available filings for selected manager
+filings = get_filings_for_manager(selected_fund)
 
 if not filings:
-    st.error(f"No filings found for {fund_name}")
+    st.error(f"No filings found for {selected_fund}")
     st.stop()
 
 # Extract filing dates
-filing_dates = [f[1] for f in filings]  # f[1] is the date string
+filing_dates = [f[1] for f in filings]
 selected_date = st.sidebar.selectbox("Select Filing Period", filing_dates)
 
-# Tabs for different views
-tab1, tab2, tab3, tab4 = st.tabs(["Top Holdings", "Quarterly Changes", "Buys", "Sells"])
-
+# ===== TOP HOLDINGS TAB =====
 with tab1:
-    st.subheader(f"Top 10 Holdings - {fund_name}")
-    holdings = get_top_holdings(fund_name, selected_date, limit=10)
+    st.subheader(f"Top 10 Holdings - {selected_fund}")
+    holdings = get_top_holdings(selected_fund, selected_date, limit=10)
     
     if holdings:
         df = pd.DataFrame(holdings)
         df['value'] = df['value'].apply(lambda x: f"${x:,}")
         df.index = range(1, len(df) + 1)
-        st.dataframe(df, width='stretch')
+        st.dataframe(df, use_container_width=True)
         
         # Chart: Top holdings by value
         holdings_chart = pd.DataFrame(holdings)
@@ -72,10 +106,11 @@ with tab1:
     else:
         st.info(f"No holdings data available for {selected_date}")
 
+# ===== QUARTERLY CHANGES TAB =====
 with tab2:
-    st.subheader(f"Quarter-over-Quarter Change - {fund_name}")
+    st.subheader(f"Quarter-over-Quarter Change - {selected_fund}")
     
-    qoq_activity = get_quarterly_changes_formatted(fund_name)
+    qoq_activity = get_quarterly_changes_formatted(selected_fund)
     
     if qoq_activity:
         df = pd.DataFrame(qoq_activity)
@@ -118,10 +153,11 @@ with tab2:
     else:
         st.info("No quarterly changes available.")
 
+# ===== BUYS TAB =====
 with tab3:
-    st.subheader(f"Buy History - {fund_name}")
+    st.subheader(f"Buy History - {selected_fund}")
     
-    buy_activity = get_buy_history(fund_name, limit_quarters=8)
+    buy_activity = get_buy_history(selected_fund, limit_quarters=8)
     
     if buy_activity:
         # Group by quarter for display
@@ -164,10 +200,11 @@ with tab3:
     else:
         st.info("No buy activity data available.")
 
+# ===== SELLS TAB =====
 with tab4:
-    st.subheader(f"Sell History - {fund_name}")
+    st.subheader(f"Sell History - {selected_fund}")
     
-    sell_activity = get_sell_history(fund_name, limit_quarters=8)
+    sell_activity = get_sell_history(selected_fund, limit_quarters=8)
     
     if sell_activity:
         # Group by quarter for display
