@@ -52,10 +52,8 @@ with tab_home:
                 
                 with col_value:
                     st.markdown("**Portfolio Value**")
-                    if manager_data['portfolio_value'] >= 1000000:
-                        value_str = f"${manager_data['portfolio_value'] / 1000000:.1f}B"
-                    else:
-                        value_str = f"${manager_data['portfolio_value'] / 1000:.1f}M"
+                    # portfolio_value is in thousands, so divide by 1,000,000 to get billions
+                    value_str = f"${manager_data['portfolio_value'] / 1_000_000:.2f}B"
                     st.metric("", value_str)
                 
                 with col_holdings:
